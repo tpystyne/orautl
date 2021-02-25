@@ -1,0 +1,3 @@
+# orautl
+
+Oracle utility scripts
