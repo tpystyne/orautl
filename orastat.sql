@@ -341,10 +341,11 @@ where limit_value not like '%UNLIMITED%' and limit_value not like '% 0'
 order by max_utilization/to_number(limit_value) desc;
 
 rem show sga information
-select name, round(bytes/1024/1024) mbytes, resizeable from v$sgainfo;
-select pool, name, round(bytes/1024/1024) mbytes from v$sgastat
-where bytes > 1024*1024
-order by bytes desc;
+column curr_gb format 9999.99
+column initial_gb format 9999.99
+select con_id, component, round(current_size/1024/1024/1024,3) curr_gb, round(user_specified_size/1024/1024/1024,3) initial_gb
+from v$sga_dynamic_components 
+order by component, con_id;
 
 column oper_type format a15
 select oper_type, parameter, initial_size/1024/1024 initial_mb, final_size/1024/1024 final_mb, end_time
