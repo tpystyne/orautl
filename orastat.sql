@@ -18,7 +18,7 @@ column instance_name format a13
 column host_name format a40
 column status format a12
 select inst_id, instance_name || decode(sys_context('USERENV', 'INSTANCE_NAME'), instance_name, '*', '') instance_name,
-       host_name, status,  
+       host_name, status,
        startup_time,
        trunc(sysdate - startup_time,2) days_up
 from gv$instance order by inst_id;
@@ -49,10 +49,10 @@ column usable_file_gb format 999,999
 column path format a50
 column state format a11
 select group_number, name,
-       total_mb/decode(type,'HIGH',3,'NORMAL',2,1)/1024 total_gb, 
-       free_mb/decode(type,'HIGH',3,'NORMAL',2,1)/1024 free_gb, 
+       total_mb/decode(type,'HIGH',3,'NORMAL',2,1)/1024 total_gb,
+       free_mb/decode(type,'HIGH',3,'NORMAL',2,1)/1024 free_gb,
        usable_file_mb/1024 usable_file_gb,
-       type, state 
+       type, state
 from v$asm_diskgroup order by group_number;
 
 select group_number, disk_number, name, state, mode_status, total_mb/1024 total_gb, free_mb/1024 free_gb, failgroup
@@ -81,10 +81,10 @@ from v$standby_log l, v$logfile f
 where l.group# = f.group#
 order by l.thread#, f.group#, f.member;
 
-select file_id, file_name name, bytes/1024/1024/1024 gbytes, increment_by*(bytes/blocks/1024/1024/1024) incrgbytes, maxbytes/1024/1024/1024 maxgbytes 
+select file_id, file_name name, bytes/1024/1024/1024 gbytes, increment_by*(bytes/blocks/1024/1024/1024) incrgbytes, maxbytes/1024/1024/1024 maxgbytes
 from dba_data_files
 order by tablespace_name, relative_fno;
-select file_id, file_name name, bytes/1024/1024/1024 gbytes, increment_by*(bytes/blocks/1024/1024/1024) incrgbytes, maxbytes/1024/1024/1024 maxgbytes  
+select file_id, file_name name, bytes/1024/1024/1024 gbytes, increment_by*(bytes/blocks/1024/1024/1024) incrgbytes, maxbytes/1024/1024/1024 maxgbytes
 from dba_temp_files
 order by tablespace_name, relative_fno;
 
@@ -105,7 +105,7 @@ column status format a9
 column contents noprint
 
 select tablespace_name, contents, bigfile, extent_management, allocation_type, min_extlen, segment_space_management, block_size blksize,
-       decode(force_logging, 'YES', 'FORCE', logging) logging,
+       decode(force_logging, 'YES', 'FORCE', logging) logging, encrypted,
        (select round(sum(bytes)/1024/1024/1024,3) from dba_segments where tablespace_name = ts.tablespace_name) used_gb,
        (select round(sum(bytes)/1024/1024/1024,3) from dba_data_files where tablespace_name = ts.tablespace_name) alloc_gb,
        (select round(sum(greatest(bytes,maxbytes))/1024/1024/1024,3) from dba_data_files where tablespace_name = ts.tablespace_name) max_gb,
@@ -114,7 +114,7 @@ from dba_tablespaces ts
 where contents != 'TEMPORARY'
 union all
 select tablespace_name, contents, bigfile, extent_management, allocation_type, min_extlen, segment_space_management, block_size blksize,
-       decode(force_logging, 'YES', 'FORCE', logging) logging,
+       decode(force_logging, 'YES', 'FORCE', logging) logging, encrypted,
        (select round(sum(bytes_used)/1024/1024/1024,3) from v$temp_extent_pool where tablespace_name = ts.tablespace_name) used_gb,
        (select round(sum(bytes)/1024/1024/1024,3) from dba_temp_files where tablespace_name = ts.tablespace_name) alloc_gb,
        (select round(sum(greatest(bytes,maxbytes))/1024/1024/1024,3) from dba_temp_files where tablespace_name = ts.tablespace_name) max_gb,
@@ -138,7 +138,7 @@ column suppl_fk format a8
 column suppl_all format a9
 column flashback_on format a5
 
-select database_role, log_mode, protection_mode, protection_level, force_logging, 
+select database_role, log_mode, protection_mode, protection_level, force_logging,
        supplemental_log_data_min suppl_min, supplemental_log_data_pk suppl_pk, supplemental_log_data_ui suppl_ui,
        supplemental_log_data_fk suppl_fk, supplemental_log_data_all suppl_all,
        flashback_on
@@ -153,10 +153,10 @@ column status format a30 trunc
 column synchronization_status format a22
 column recovery_mode format a30
 
-select destination, type, 
+select destination, type,
   nvl(error,status) status,
   synchronization_status, synchronized, recovery_mode
-from v$archive_dest_status 
+from v$archive_dest_status
 where destination is not null;
 
 column type format a28
@@ -194,23 +194,23 @@ column checkpoint_change# heading CHECKPOINT_SCN format 999999999999
 column absolute_fuzzy_change# heading FUZZY_SCN format 999999999999
 column blocks format 999,999,999
 
-select bdf.file#, bdf.creation_change#, bdf.incremental_change#, bdf.checkpoint_change#, 
+select bdf.file#, bdf.creation_change#, bdf.incremental_change#, bdf.checkpoint_change#,
        to_char(bdf.checkpoint_time) checkpoint_time, to_char(bdf.completion_time) completion_time, absolute_fuzzy_change#, bdf.blocks
-from v$backup_datafile bdf 
-where bdf.checkpoint_change# =
-  (select max(bdf2.checkpoint_change#) 
+from v$backup_datafile bdf
+where bdf.completion_time =
+  (select max(bdf2.completion_time)
    from v$backup_datafile bdf2
    where bdf2.file# = bdf.file# and bdf2.creation_change# = bdf.creation_change#
    and   bdf2.incremental_change# <= bdf2.creation_change#)
-and   bdf.creation_change# = 
-  (select max(df.creation_change#) 
+and   bdf.creation_change# =
+  (select max(df.creation_change#)
    from v$datafile df
    where df.file# = bdf.file#)
 order by bdf.file#;
 
 column name format a30
 column unrecoverable_change# format 99999999999999
-select df.file#, df.ts#, ts.name, df.unrecoverable_time, df.unrecoverable_change# 
+select df.file#, df.ts#, ts.name, df.unrecoverable_time, df.unrecoverable_change#
 from v$datafile df
 join v$tablespace ts on ts.ts# = df.ts#
 where unrecoverable_change# > 0
@@ -239,14 +239,14 @@ select next_time, logs, mbytes/1024 gbytes,
        max_mbytes_per_sec
 from (select trunc(next_time, 'HH24') next_time, count(*) logs, sum(mbytes) mbytes, max(mbytes_per_sec) max_mbytes_per_sec
       from (select distinct thread#, sequence#, next_time,
-                   blocks*block_size/1024/1024 mbytes, 
-                   blocks*block_size/1024/1024/decode(next_time - first_time, 0, null, next_time - first_time)/24/60/60 mbytes_per_sec 
+                   blocks*block_size/1024/1024 mbytes,
+                   blocks*block_size/1024/1024/decode(next_time - first_time, 0, null, next_time - first_time)/24/60/60 mbytes_per_sec
       from v$archived_log) al
       group by trunc(next_time, 'HH24'))
 order by next_time
 /
 
-select trunc(first_time, 'HH24') first_time, count(*) logs 
+select trunc(first_time, 'HH24') first_time, count(*) logs
 from v$log_history lh
 where not exists (select null from v$archived_log)
 group by trunc(first_time, 'HH24')
@@ -274,13 +274,13 @@ select res.*
        ) res
 order by applied_date;
 
-column action format a20
-column version format a12
-column comments format a50
+column action format a12
+column version format a24
+column comments format a75
 column bundle_series format a16
-column action_time format a30
-select action, version, comments, action_time 
-from dba_registry_history order by action_time;
+column action_time format a28
+select action, version, comments, action_time
+from dba_registry_history order by action_time nulls first;
 
 column version format a12
 column description format a70
@@ -301,7 +301,7 @@ select comp_id, comp_name, version, status from dba_registry order by comp_id;
 rem show non-default system parameters
 column con format 99
 column name format a35
-column display_value format a75
+column display_value format a132
 
 select display_value from v$parameter where name = 'spfile';
 
@@ -324,10 +324,10 @@ column start_time format a30
 select start_time, max_iops, max_mbps, max_pmbps, latency, num_physical_disks from dba_rsrc_io_calibrate;
 
 column operation_name format a40
-select operation_name, to_number(manual_value) manual, to_number(calibration_value) calibration, to_number(default_value) default_ 
+select operation_name, to_number(manual_value) manual, to_number(calibration_value) calibration, to_number(default_value) default_
 from v$optimizer_processing_rate order by 1;
 
-select count(*), count(last_analyzed), min(last_analyzed), max(last_analyzed) 
+select count(*), count(last_analyzed), min(last_analyzed), max(last_analyzed)
 from dba_tab_statistics where object_type = 'FIXED TABLE';
 
 column property_name format a30
@@ -344,7 +344,7 @@ rem show sga information
 column curr_gb format 9999.99
 column initial_gb format 9999.99
 select con_id, component, round(current_size/1024/1024/1024,3) curr_gb, round(user_specified_size/1024/1024/1024,3) initial_gb
-from v$sga_dynamic_components 
+from v$sga_dynamic_components
 order by component, con_id;
 
 column oper_type format a15
@@ -364,7 +364,7 @@ select * from gv$cluster_interconnects;
 rem show system statistics since instance startup
 column name format a60
 column value format 999,999,999,999,999
-select name, value from v$sysstat 
+select name, value from v$sysstat
 where value > 0
 order by upper(name);
 
@@ -395,14 +395,12 @@ group by service_name, inst_id
 order by service_name, inst_id;
 
 rem show statistics of current sessions
-set numwidth 8
+set numwidth 9
 column inst_id heading INST format 99
 column sid format 9999
 column username format a20
 column program format a30 trunc
 column machine format a12 trunc
-column opencur format 9999
-column execs format 9999999
 column days format 999.99
 compute sum of execs on report
 compute sum of logios on report
@@ -418,7 +416,7 @@ compute sum of procmem on report
 compute sum of redosize on report
 
 set termout on
-select s.inst_id, s.sid, 
+select s.inst_id, s.sid,
        s.username,
        sum(decode(n.name, 'execute count', value, null)) execs,
        sum(decode(n.name, 'SQL*Net roundtrips to/from client', value, null)) trips,
@@ -430,14 +428,33 @@ select s.inst_id, s.sid,
        sum(decode(n.name, 'session uga memory', value, null)) sesmem,
        sysdate - s.logon_time days, s.program
 from gv$sesstat st
-join v$statname n on n.statistic# = st.statistic# 
-join gv$session s on st.inst_id = s.inst_id and st.sid = s.sid 
+join v$statname n on n.statistic# = st.statistic#
+join gv$session s on st.inst_id = s.inst_id and st.sid = s.sid
 where n.name in ('execute count', 'SQL*Net roundtrips to/from client','user commits','CPU used by this session',
                  'consistent gets','consistent changes','db block changes','physical reads','physical writes','redo writes',
-                 'redo size','session uga memory')  
+                 'redo size','session uga memory')
 group by s.inst_id, s.sid, s.username, s.machine, s.program, s.logon_time, s.process
 order by s.logon_time, s.process;
 
+column machine noprint
+column program format a40 trunc
+column client_driver format a16
+column client_version format a12
+column client_charset format a16
+column encrypt format a8
+column chksum format a8
+
+select distinct sci.inst_id, sci.sid, s.machine, s.username, sci.client_connection, sci.client_driver, sci.client_version, sci.client_charset,
+  substr(encr.network_service_banner, 1, instr(encr.network_service_banner, ' Encryption service adapter')) encrypt,
+  substr(chksum.network_service_banner, 1, instr(chksum.network_service_banner, ' Crypto-checksumming service adapter')) chksum,
+program
+from gv$session_connect_info sci
+join gv$session s on s.inst_id = sci.inst_id and s.sid = sci.sid
+left join gv$session_connect_info encr on encr.inst_id = sci.inst_id and encr.sid = sci.sid
+  and encr.network_service_banner like '% Encryption service adapter%'
+left join gv$session_connect_info chksum on chksum.inst_id = sci.inst_id and chksum.sid = sci.sid
+  and chksum.network_service_banner like '% Crypto-checksumming service adapter%'
+order by s.machine, s.username, s.program;
 
 select target_mttr, estimated_mttr, recovery_estimated_ios, actual_redo_blks from v$instance_recovery;
 
@@ -469,7 +486,7 @@ select svrname, dirname from v$dnfs_servers;
 column filename format a60
 select * from v$dnfs_files order by pnum, filename;
 
-select pnum, nfs_lookup, nfs_read, nfs_write 
+select pnum, nfs_lookup, nfs_read, nfs_write
 from v$dnfs_stats
 where nfs_read > 0 or nfs_write > 0
 order by pnum;
@@ -538,9 +555,10 @@ from v$system_event
 where time_waited > 0
 order by decode(wait_class, 'Idle', 1, 0), time_waited desc;
 
-break on event skip 0 
+break on event skip 0
 select event, wait_time_milli, wait_count from v$event_histogram
-where wait_count > 0
+where event in (select event from v$system_event where wait_class != 'Idle' and time_waited > 1000)
+and   wait_count > 0
 order by upper(event), wait_time_milli;
 
 rem show latch get statistics
@@ -572,7 +590,7 @@ compute max of maxquerylen on report
 column mbytes_1h format 999,999
 column mbytes_24h format 9,999,999
 
-select begin_time, end_time, txncount, undoblks, 
+select begin_time, end_time, txncount, undoblks,
   sum(undoblks*block_size/1024/1024) over (order by begin_time range 1/24 preceding) mbytes_1h,
   sum(undoblks*block_size/1024/1024) over (order by begin_time range 1 preceding) mbytes_24h,
   tuned_undoretention retention, maxquerylen, maxqueryid
@@ -582,20 +600,15 @@ order by begin_time;
 
 column gbytes format 99,999.999
 
-def ORACLE_ADMIN_USERS="'ANONYMOUS','CTXSYS','DBSNMP','EXFSYS','LBACSYS','MDSYS','MGMT_VIEW','OLAPSYS','OWBSYS','ORDPLUGINS','ORDSYS','OUTLN','SI_INFORMTN_SCHEMA','SYS','SYSMAN','SYSTEM','TSMSYS','WK_TEST','WKSYS','WKPROXY','WMSYS','XDB'"
-def ORACLE_NONADM_USERS="'APEX_030200','APEX_040000','APEX_PUBLIC_USER','APPQOSSYS','DIP','CSMIG','FLOWS_030000','FLOWS_FILES','MDDATA','ORACLE_OCM','ORDDATA','OWBSYS_AUDIT','PERFSTAT','SPATIAL_CSW_ADMIN_USR','SPATIAL_WFS_ADMIN_USR','XS$NULL'"
-def ORACLE_DEMO_USERS="'BI','HR','OE','PM','IX','SH','SCOTT'"
-def ORACLE_OBS_USERS="'AURORA$JIS$UTILITY$','AURORA$ORB$UNAUTHENTICATED','OSE$HTTP$ADMIN','DMSYS','ODM','ODM_MTR'"
-
 select owner, count(*) segments, sum(extents) extents, sum(bytes)/1024/1024/1024 gbytes
 from dba_segments
-where owner in (&ORACLE_ADMIN_USERS,&ORACLE_NONADM_USERS,&ORACLE_DEMO_USERS,&ORACLE_OBS_USERS)
+where owner in (select username from dba_users where oracle_maintained = 'Y')
 group by owner
 order by owner;
 
 select owner, count(*) segments, sum(extents) extents, sum(bytes)/1024/1024/1024 gbytes
 from dba_segments
-where owner not in (&ORACLE_ADMIN_USERS,&ORACLE_NONADM_USERS,&ORACLE_DEMO_USERS,&ORACLE_OBS_USERS)
+where owner in (select username from dba_users where oracle_maintained = 'N')
 group by owner
 order by owner;
 
@@ -608,7 +621,7 @@ select * from (
   order by bytes desc, owner, segment_name, partition_name)
 where rownum <= 40;
 
-select owner, count(*) segments, sum(ts.block_size * rbin.space)/1024/1024/1024 gbytes 
+select owner, count(*) segments, sum(ts.block_size * rbin.space)/1024/1024/1024 gbytes
 from dba_recyclebin rbin
 join dba_tablespaces ts on ts.tablespace_name = rbin.ts_name
 group by owner
@@ -617,7 +630,7 @@ order by owner;
 column object_type format a19
 select owner, object_type, count(*), to_char(max(last_ddl_time), 'YYYY.MM.DD HH24:MI:SS') last_ddl_time
 from dba_objects
-where owner not in (&ORACLE_ADMIN_USERS,&ORACLE_NONADM_USERS,&ORACLE_DEMO_USERS,&ORACLE_OBS_USERS)
+where owner in (select username from dba_users where oracle_maintained = 'N')
 group by cube(owner, object_type)
 order by owner, object_type;
 
@@ -648,18 +661,14 @@ select window_name, start_time, duration from dba_autotask_schedule order by sta
 column originating_timestamp format a21
 column message_text format a148
 
-column adr_home new_value adr_home
-select 'diag/rdbms/' || lower(value) adr_home  from v$parameter where name = 'db_unique_name';
-
 rem show configuration from alert log
 select originating_timestamp, message_text from (
   select record_id,
-         to_char(originating_timestamp, 'YYYY-MM-DD HH24:MI:SS') originating_timestamp, 
+         to_char(originating_timestamp, 'YYYY-MM-DD HH24:MI:SS') originating_timestamp,
          message_text ,
          row_number() over (partition by substr(message_text, 1, 20) order by record_id desc) lastn
-  from v$diag_alert_ext      
-  where adr_home like '&ADR_HOME/%'
-  and   (message_text like 'Large Page%' or
+  from v$diag_alert_ext
+  where (message_text like 'Large Page%' or
          message_text like '  PAGESIZE%' or
          message_text like '     2048K%' or
          message_text like 'cluster interconnect IPC%' or
@@ -682,8 +691,7 @@ select originating_timestamp, message_text from (
          message_text ,
          row_number() over (partition by substr(message_text, 1, 240) order by record_id desc) lastn
   from v$diag_alert_ext
-  where adr_home like '&ADR_HOME/%'
-  and   (upper(message_text) like 'ALTER SYSTEM SET%' or
+  where (upper(message_text) like 'ALTER SYSTEM SET%' or
          upper(message_text) like 'ALTER SYSTEM RESET%'
          )
   )
@@ -693,12 +701,11 @@ order by record_id;
 rem show last error messages from alert log
 select originating_timestamp, message_text from (
   select record_id,
-         to_char(originating_timestamp, 'YYYY-MM-DD HH24:MI:SS') originating_timestamp, 
+         to_char(originating_timestamp, 'YYYY-MM-DD HH24:MI:SS') originating_timestamp,
          message_text ,
          row_number() over (partition by substr(message_text, 1, 9) order by record_id desc) lastn
-  from v$diag_alert_ext      
-  where adr_home like '&ADR_HOME/%'
-  and   (message_level < 8 or
+  from v$diag_alert_ext
+  where (message_level < 8 or
          message_text like 'ORA-%')
   )
 where lastn <= 5
@@ -707,3 +714,5 @@ order by record_id;
 column con_id clear
 clear breaks
 clear computes
+
+
